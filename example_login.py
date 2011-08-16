@@ -48,10 +48,11 @@ def login():
 @route('/SSO', method='POST')
 def sso():
     attrs = saml.login(request.forms)
-    # attrs is a dict containing simplified SAML attributes
-    # attrs['NameID'] is the Subject/NameID
+    # attrs is a dict containing simplified SAML attributes.
+    # Attribute values are returned in a list, even for single values.
+    # attrs['NameID'] is the Subject/NameID.
     # The remaining values are from the AttributeStatement, e.g.
-    # if attrs.get('eduPersonPrincipalName') in valid_users:
+    # if attrs.get('eduPersonPrincipalName')[0] in valid_users:
     #     authenticated = True
 
     # An unsuccessful authentication will log errors and return
