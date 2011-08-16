@@ -1,0 +1,8 @@
+A library for supporting the SAML2 HTTP-POST-SimpleSign binding.
+
+Only supporting SimpleSign allows us to provide a SAML2 SP, using only the 
+standard library, and M2Crypto for signature verification. The IdP SSO Binding
+is currently only HTTP-Redirect.
+
+This has been tested against SAML2 IdPs, including shibboleth. When using
+shibboleth, responses must be always be signed. XMLsig signatures are ignored.
