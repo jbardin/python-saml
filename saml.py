@@ -35,10 +35,14 @@ ns = {'saml2p': '{urn:oasis:names:tc:SAML:2.0:protocol}',
 
 # xpath strings
 xp_subject_nameid = '{saml2}Assertion/{saml2}Subject/{saml2}NameID'.format(**ns)
-xp_attributestatement= '{saml2}Assertion/{saml2}AttributeStatement'.format(**ns)
+xp_attributestatement = '{saml2}Assertion/{saml2}AttributeStatement'.format(**ns)
+xp_status_code = '{saml2p}Status/{saml2p}StatusCode'.format(**ns)
+xp_status_message = '{saml2p}Status/{saml2p}StatusMessage'.format(**ns)
 
 # we only support the HTTP-POST-SimpleSign binding
 HTTP_POST_SimpleSign = 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST-SimpleSign'
+
+SAML2_Success = "urn:oasis:names:tc:SAML:2.0:status:Success"
 
 # SAML2 AuthnRequest template
 authnRequest = ('<?xml version="1.0" encoding="UTF-8"?>'
@@ -129,6 +133,16 @@ def parse_simplesign(response, sig, sigalg, relaystate=None):
         raise SAML_Error('Time delta too great. IssueInstant off by %d seconds'
                          % delta.seconds)
 
+    status = response_xml.find(xp_status_code)
+    status_message = response_xml.find(xp_status_message)
+
+    if status.get('Value') != SAML2_Success:
+        if status_message:
+            msg = status_message.text
+        else:
+            msg = 'SAML Error'
+        raise SAML_Error(msg)
+
     return response_xml
     
 
@@ -186,15 +200,18 @@ def login(form):
         attrs['NameID'] = name_id.text
 
     for el in response_xml.find(xp_attributestatement):
-        name = el.get('FriendlyName') or el.get('Name') or el.tag
+        name = el.get('Name') or el.tag
+        fname = el.get('FriendlyName')
         attrs[name] = []
+        if fname:
+            attrs[fname] = attrs[name]
         for av in el.findall('{saml2}AttributeValue'.format(**ns)):
             if av.text:
                 attrs[name].append(av.text)
             else:
                 log.debug(('Parsing XML AttributeValues for %s. '
                           'Some information may not be returned') % name)
-                attrs[name] = [child.text for child in av]
+                attrs[name].extend(child.text for child in av)
    
     return attrs
 
