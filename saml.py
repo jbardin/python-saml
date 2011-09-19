@@ -119,13 +119,14 @@ def parse_simplesign(response, sig, sigalg, relaystate=None):
     log.debug('Verified Response signature')
 
     response_xml = ET.fromstring(response)
+
     if response_xml.get('ID') in id_cache:
         raise SAML_Error('Replay detected')
     log.debug('No replay detected within %d seconds' % replay_cache_lifetime)
 
     cache_id(response_xml.get('ID'))
 
-    issue_inst = dt_parser.parse(response_xml.get('IssueInstant'))
+    issue_inst = dt_parser.parse(response_xml.get('IssueInstant', ''))
     now = datetime.now(tz=tzutc())
     delta = now - issue_inst
     log.debug('IssueInstant = %s; CurrentTime = %s' % (issue_inst.ctime(), now.ctime()))
@@ -177,23 +178,25 @@ def login(form):
     Process the HTTP-POST-SimpleSign form data.
     """
     attrs = {}
-    response = b64decode(form.get('SAMLResponse', ''))
-    sig = form.get('Signature', '')
-    sigalg = form.get('SigAlg', '')
-    relaystate = form.get('RelayState', '')
+    response = attrs['SAMLResponse'] = b64decode(bytes(form.get('SAMLResponse', '')))
+    sig = attrs['Signature'] = bytes(form.get('Signature', ''))
+    sigalg = attrs['SigAlg'] = bytes(form.get('SigAlg', ''))
+    relaystate = attrs['RelayState'] = bytes(form.get('RelayState', ''))
 
     log.debug('Processing SAML Response')
     log.debug('SAMLResponse: ' + response)
     log.debug('Signature: ' + sig)
     log.debug('SigAlg: ' + sigalg)
-    log.debug('relayState: ' + relaystate)
+    log.debug('RelayState: ' + relaystate)
 
     try:
         response_xml = parse_simplesign(response, sig, sigalg, relaystate)
     except SAML_Error, e:
         log.error('Authentication Error: ' + str(e))
         log.debug('Returning no attributes')
-        return {}
+        return attrs
+
+    attrs['SamlResponse_etree'] = response_xml
 
     name_id = response_xml.find(xp_subject_nameid)
     if name_id != None:
@@ -205,6 +208,7 @@ def login(form):
         attrs[name] = []
         if fname:
             attrs[fname] = attrs[name]
+
         for av in el.findall('{saml2}AttributeValue'.format(**ns)):
             if av.text:
                 attrs[name].append(av.text)
