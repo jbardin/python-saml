@@ -202,7 +202,13 @@ def login(form):
     if name_id != None:
         attrs['NameID'] = name_id.text
 
-    for el in response_xml.find(xp_attributestatement):
+    
+    attribute_statement = response_xml.find(xp_attributestatement)
+    if not attribute_statement:
+        log.info('No attribute statement in SAMLResponse')
+        return attrs
+
+    for el in attribute_statement:
         name = el.get('Name') or el.tag
         fname = el.get('FriendlyName')
         attrs[name] = []
